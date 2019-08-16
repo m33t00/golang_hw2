@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,7 +23,6 @@ func CombineResults(in, out chan interface{}) {
 	}
 
 	sort.Strings(stringBuffer)
-
 	out <- strings.Join(stringBuffer, "_")
 }
 
@@ -92,24 +90,21 @@ func generateMultihash(data string, wg *sync.WaitGroup, out chan interface{}) {
 
 // ExecutePipeline functiont
 func ExecutePipeline(jobs ...job) {
-	channels := make([]chan interface{}, len(jobs)+1)
+	var in, out chan interface{}
+	in = make(chan interface{})
 	wg := &sync.WaitGroup{}
 
-	for idx, stageFn := range jobs {
-		if idx == 0 {
-			channels[idx] = make(chan interface{})
-		}
-		channels[idx+1] = make(chan interface{})
+	for _, stageFn := range jobs {
+		out = make(chan interface{})
 
 		wg.Add(1)
 		go func(stageFn job, in, out chan interface{}, wg *sync.WaitGroup) {
 			defer wg.Done()
 			defer close(out)
-
 			stageFn(in, out)
-		}(stageFn, channels[idx], channels[idx+1], wg)
+		}(stageFn, in, out, wg)
+
+		in = out
 	}
 	wg.Wait()
-
-	fmt.Println("Pipeline done")
 }
